@@ -1,0 +1,24 @@
+{
+  "name": "cyanschool",
+  "version": "1.0.0",
+  "description": "",
+  "main": "cyan.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/centralomd/cyanSchool.git"
+  },
+  "author": "centralomd",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/centralomd/cyanSchool/issues"
+  },
+  "homepage": "https://github.com/centralomd/cyanSchool#readme",
+  "dependencies": {
+    "discord.js": "^12.3.1",
+    "sequelize": "^6.3.5",
+    "sqlite3": "^5.0.0"
+  }
+}
