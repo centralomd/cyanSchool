@@ -6,9 +6,11 @@ const Enmap = require('enmap');
 // Setup Stuffs
 const client = new Discord.Client();
 const prefix = "s?"
-client.tasks = new Enmap();
-const mu = client.users.cache.find(u => u.id === "345813220612898818");
-const getRandomColor = '#' + ((Math.random() * 0xffffff) << 0).toString(16).padStart(6, '0');
+
+client.tasks = new Enmap({
+  name: "tasks",
+  fetchAll: true
+});
 
 // Stuffs
 
@@ -28,28 +30,28 @@ client.once('ready', async () => {
   console.log(`${client.user.username} is online and running! With:\n Username: ${client.user.username}`)
   client.user.setPresence({ activity: { name: `Online Class`, type: "WATCHING" }, status: 'dnd' })
 
-    (async function () {
-      await client.tasks.defer;
-      console.log("=========================");
-      console.log(client.tasks.size + " tasks loaded!");
-      console.log("=========================");
-      setInterval(async () => {
-        if (client.tasks.size != 0) {
-          const remEm = new Discord.MessageEmbed()
-            .setColor(getRandomColor)
-            .setAuthor("Reminders")
-            .setTitle("You have unfinished tasks.")
-            .setDescription("Please finish these tasks below:")
-            .setTimestamp()
+  if (client.tasks.isReady) {
+    console.log("=========================");
+    console.log(client.tasks.size + " tasks loaded!");
+    console.log("=========================");
+    setInterval(async () => {
+      if (client.tasks.size != 0) {
+        const remEm = new Discord.MessageEmbed()
+          .setColor("#31EDC2")
+          .setAuthor("Reminders")
+          .setTitle("You have unfinished tasks.")
+          .setDescription("Please finish these tasks below:")
+          .setTimestamp()
 
-          await client.tasks.indexes.forEach(task => {
-            remEm.addField(`${client.tasks.get(task)}`, `${task}`);
-          });
+        await client.tasks.indexes.forEach(task => {
+          remEm.addField(`${client.tasks.get(task)}`, `${task}`);
+        });
 
-          await mu.send(remEm);
-        };
-      }, 600000);
-    }());
+        const mu = await client.users.fetch("345813220612898818");
+        mu.send(remEm);
+      };
+    }, 600000);
+  };
 });
 
 client.on('message', async message => {
