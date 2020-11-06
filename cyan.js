@@ -1,14 +1,14 @@
 // Packaging
 const fs = require('fs');
 const Discord = require('discord.js');
-//const Enmap = require('enmap');
+const Enmap = require('enmap');
 
 // Setup Stuffs
 const client = new Discord.Client();
-const { prefix, token } = require('./config.json');
-const { Users, CurrencyShop } = require('./dbObjects');
-const { Op } = require('sequelize');
-const currency = new Discord.Collection();
+const prefix = "s?"
+client.tasks = new Enmap();
+const mu = client.users.cache.find(u => u.id === "345813220612898818");
+const getRandomColor = '#' + ((Math.random() * 0xffffff) << 0).toString(16).padStart(6, '0');
 
 // Stuffs
 
@@ -17,84 +17,76 @@ client.commands = new Discord.Collection();
 const commandFiles = fs.readdirSync('./commands').filter(file => file.endsWith('.js'));
 
 for (const file of commandFiles) {
-	const command = require(`./commands/${file}`);
+  const command = require(`./commands/${file}`);
 
-	// set a new item in the Collection
-	// with the key as the command name and the value as the exported module
-	client.commands.set(command.name, command);
+  // set a new item in the Collection
+  // with the key as the command name and the value as the exported module
+  client.commands.set(command.name, command);
 }
 
-Reflect.defineProperty(currency, 'add', {
-	/* eslint-disable-next-line func-name-matching */
-	value: async function add(id, amount) {
-		const user = currency.get(id);
-		if (user) {
-			user.balance += Number(amount);
-			return user.save();
-		}
-		const newUser = await Users.create({ user_id: id, balance: amount });
-		currency.set(id, newUser);
-		return newUser;
-	},
-});
-
-Reflect.defineProperty(currency, 'getBalance', {
-	/* eslint-disable-next-line func-name-matching */
-	value: function getBalance(id) {
-		const user = currency.get(id);
-		return user ? user.balance : 0;
-	},
-});
-
 client.once('ready', async () => {
-  const storedBalances = await Users.findAll();
-  storedBalances.forEach(b => currency.set(b.user_id, b));
-
   console.log(`${client.user.username} is online and running! With:\n Username: ${client.user.username}`)
   client.user.setPresence({ activity: { name: `Online Class`, type: "WATCHING" }, status: 'dnd' })
+
+    (async function () {
+      await client.tasks.defer;
+      console.log("=========================");
+      console.log(client.tasks.size + " tasks loaded!");
+      console.log("=========================");
+      setInterval(async () => {
+        if (client.tasks.size != 0) {
+          const remEm = new Discord.MessageEmbed()
+            .setColor(getRandomColor)
+            .setAuthor("Reminders")
+            .setTitle("You have unfinished tasks.")
+            .setDescription("Please finish these tasks below:")
+            .setTimestamp()
+
+          await client.tasks.indexes.forEach(task => {
+            remEm.addField(`${client.tasks.get(task)}`, `${task}`);
+          });
+
+          await mu.send(remEm);
+        };
+      }, 600000);
+    }());
 });
 
 client.on('message', async message => {
-	if (!message.content.startsWith(prefix) || message.author.bot) return;
+  if (message.author.id != "345813220612898818") return;
+  if (message.channel.type != 'dm') return;
+  if (!message.content.startsWith(prefix)) return;
 
-	const args = message.content.slice(prefix.length).trim().split(/ +/);
-    const commandName = args.shift().toLowerCase();
-    
-    if (!client.commands.has(commandName)) return;
+  const args = message.content.slice(prefix.length).trim().split(/ +/);
+  const commandName = args.shift().toLowerCase();
 
-	const command = client.commands.get(commandName) || client.commands.find(command => command.aliases && command.aliases.includes(commandName));
+  if (!client.commands.has(commandName)) return;
 
-    if (!command) return;
+  const command = client.commands.get(commandName) || client.commands.find(command => command.aliases && command.aliases.includes(commandName));
 
-    if (command.args && !args.length) {
-        return message.channel.send(`You didn't provide any arguments, ${message.author}!`);
-    }
-    if (message.channel.type === 'dm') {
-        return message.reply('I can\'t execute commands inside DMs!');
-    }
+  if (!command) return;
 
+  try {
+    command.execute(message, args, client);
+  } catch (error) {
+    console.error(error);
+    console.log(`Execution of Command (${commandName}) has failed at ${new Date().getTime()} with the error: \n ${error} \n Executed by ${message.author.tag} with ID of ${message.author.id}.`)
 
-    try {
-        command.execute(message, args, client, currency, Discord);
-    } catch (error) {
-        console.error(error);
-        console.log(`Execution of Command (${commandName}) has failed at ${new Date().getTime()} with the error: \n ${error} \n Executed by ${message.author.tag} with ID of ${message.author.id}.`)
-    
-        const executionfailure = new Discord.MessageEmbed()
-          .setColor('#FC352C')
-          .setTitle('Error')
-          .setDescription('Bug Found.')
-          .addFields(
-            { name: '\u200b', value: `\u200b` },
-            { name: 'Command Ran', value: `${commandName}` },
-            { name: 'Error Info', value: `${error}` },
-            { name: 'Executed At', value: `${new Date().getTime()}` },
-            { name: 'Executer', value: `${message.author.tag}` },
-          )
-          .setTimestamp()
-    
-        message.channel.send(executionfailure);
-    }
+    const executionfailure = new Discord.MessageEmbed()
+      .setColor('#FC352C')
+      .setTitle('Error')
+      .setDescription('Bug Found.')
+      .addFields(
+        { name: '\u200b', value: `\u200b` },
+        { name: 'Command Ran', value: `${commandName}` },
+        { name: 'Error Info', value: `${error}` },
+        { name: 'Executed At', value: `${new Date().getTime()}` },
+        { name: 'Executer', value: `${message.author.tag}` },
+      )
+      .setTimestamp()
+
+    message.author.send(executionfailure);
+  }
 });
 
-client.login(token);
+client.login(process.env.DISCORD_TOKEN);
